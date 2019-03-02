@@ -28,46 +28,55 @@ function Rename-VM {
     } -ArgumentList $new_vm_name;
 }
 
+function Clone_VMs {
+    Param($new_names)
 
-foreach ($new_name in $new_names) {
+    foreach ($new_name in $new_names) {
     
-    $old_harddrive_path = $BASE_VM.HardDrives.Path;
-    $base_path = Split-Path -Path $old_harddrive_path;
-    $ext = (Split-Path -Path $old_harddrive_path -Leaf).split('.')[1];
-    $new_harddrive_path = Join-Path $base_path ($new_name + "." + $ext) ;
+        $old_harddrive_path = $BASE_VM.HardDrives.Path;
+        $base_path = Split-Path -Path $old_harddrive_path;
+        $ext = (Split-Path -Path $old_harddrive_path -Leaf).split('.')[1];
+        $new_harddrive_path = Join-Path $base_path ($new_name + "." + $ext) ;
 
-    $LocalUser = "$AdminAccount"
-    $LocalPassword = ConvertTo-SecureString -String $AdminPassword -AsPlainText -Force
-    $LocalCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $LocalUser, $LocalPassword
+        $LocalUser = "$AdminAccount"
+        $LocalPassword = ConvertTo-SecureString -String $AdminPassword -AsPlainText -Force
+        $LocalCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $LocalUser, $LocalPassword
 
 
-    Write-Host "Copying HDD from $old_harddrive_path to $new_harddrive_path";
-    Copy-Item $old_harddrive_path $new_harddrive_path;
-    Write-Host "Copying HDD complete";
+        Write-Host "Copying HDD from $old_harddrive_path to $new_harddrive_path";
+        Copy-Item $old_harddrive_path $new_harddrive_path;
+        Write-Host "Copying HDD complete";
 
-    Write-Host "Building VM Network=$network_name HDD=$new_harddrive_path";
-    New-VM -Name $new_name -SwitchName $network_name -VHDPath $new_harddrive_path -MemoryStartupBytes $memory -Generation $BASE_VM.Generation;
+        Write-Host "Building VM Network=$network_name HDD=$new_harddrive_path";
+        New-VM  -Name $new_name `
+                -SwitchName $network_name `
+                -VHDPath $new_harddrive_path `
+                -MemoryStartupBytes $memory `
+                -Generation $BASE_VM.Generation;
 
-    Start-VM -Name $new_name
+        Start-VM -Name $new_name
 
-    # Write-Host "wait 50 seconds to start"
-    # sleep -Seconds 50;
-    Write-Verbose "Now testing the computer for response." -Verbose;
+        # Write-Host "wait 50 seconds to start"
+        # sleep -Seconds 50;
+        Write-Verbose "Now testing the computer for response." -Verbose;
 
-    # Source <https://social.technet.microsoft.com/wiki/contents/articles/36609.windows-server-2016-unattended-installation.aspx>
-    # After the inital provisioning, we wait until PowerShell Direct is functional and working within the guest VM before moving on.
-    # Big thanks to Ben Armstrong for the below useful Wait code 
-    # Write-Verbose “Waiting for PowerShell Direct to start on VM [$DCVMName]” -Verbose
-    #     while ((icm -VMName $new_vm_name -Credential $DCLocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {Sleep -Seconds 1}
+        # Source <https://social.technet.microsoft.com/wiki/contents/articles/36609.windows-server-2016-unattended-installation.aspx>
+        # After the inital provisioning, we wait until PowerShell Direct is functional and working within the guest VM before moving on.
+        # Big thanks to Ben Armstrong for the below useful Wait code 
+        # Write-Verbose “Waiting for PowerShell Direct to start on VM [$DCVMName]” -Verbose
+        #     while ((icm -VMName $new_vm_name -Credential $DCLocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {Sleep -Seconds 1}
             
-    $count = 0 # Got to 60,65,62
-    Write-Verbose “Waiting for PowerShell Direct to start on VM [$new_name]” -Verbose
-    while ((icm -VMName $new_name -Credential $LocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {
-        Sleep -Seconds 1
-        $count = $count + 1;
-        Write-Host "Waiting C=$count";
-        If ($count -gt 90) { break; }
-    }
+        $count = 0 # Got to 60,65,62
+        Write-Verbose “Waiting for PowerShell Direct to start on VM [$new_name]” -Verbose
+        while ((icm -VMName $new_name -Credential $LocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {
+            Sleep -Seconds 1
+            $count = $count + 1;
+            Write-Host "Waiting C=$count";
+            If ($count -gt 90) { break; }
+        }
 
-    Rename-VM $LocalCredential $new_name $new_name
+        Rename-VM $LocalCredential $new_name $new_name
+    }
 }
+
+Clone_VMs $new_names
