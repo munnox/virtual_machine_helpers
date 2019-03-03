@@ -14,15 +14,15 @@ $base_image="vws";
 $BASE_VM = (Get-VM -Name $base_image)
 # $seg_network_name = $BASE_VM.NetworkAdapters[0].SwitchName
 
-$project = "test_seg";
-$baseIP = "192.168.0.X";
+$project = "test_segment_01";
+$baseIP = "192.168.0";
 $mask = 24;
 
 #User name and Password
 $AdminAccount="Administrator"
 $AdminPassword="passw0rd!"
 
-$seg_network_name = "$Project range: $baseIP/$mask";
+$seg_network_name = "$Project range: $baseIP.0/$mask";
 
 Write-Host "network segment name: " $seg_network_name;
 
@@ -30,37 +30,53 @@ $machines= @(
     @{
         name='T1-GW'
         base_image=$base_image
-        description='Network Gateway'
+        description="Network $project Gateway"
         cpucount=2
-        memory=4GB
+        memory=2GB
         nics= @(
             @{
                 name="domain"
                 network=$seg_network_name
-                ip="192.168.10.1"
-                gateway="192.168.10.1"
-                dns="192.168.10.2"
+                ip="$baseIP.1"
+                gateway="$baseIP.1"
+                dns="$baseIP.1"
             }
         )
-        tags=@('gateway', 'server')
+        tags=@('win', 'gateway', 'server')
     },
     @{
         name='T1-DC'
         base_image=$base_image
-        description='User access control'
+        description="Network $project Domain Controller"
         cpucount=2
-        memory=4GB
+        memory=2GB
         nics= @(
             @{
                 name="domain"
                 network=$seg_network_name
-                ip="192.168.10.2"
-                gateway="192.168.10.1"
-                dns="192.168.10.2"
-                domain="$project.local"
+                ip="$baseIP.2"
+                gateway="$baseIP.1"
+                dns="$baseIP.2"
             }
         )
-        tags=@('dc', 'server')
+        tags=@('win', 'dc', 'server')
+    },
+    @{
+        name='T1-CL'
+        base_image=$base_image
+        description="Network $project Client"
+        cpucount=2
+        memory=2GB
+        nics= @(
+            @{
+                name="domain"
+                network=$seg_network_name
+                ip="$baseIP.3"
+                gateway="$baseIP.1"
+                dns="$baseIP.2"
+            }
+        )
+        tags=@('win', 'client')
     }
 )
 
