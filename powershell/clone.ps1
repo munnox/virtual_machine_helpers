@@ -23,8 +23,26 @@ $AdminAccount="Administrator"
 $AdminPassword="passw0rd!"
 
 $seg_network_name = "$Project range: $baseIP.0/$mask";
+$seg_network_type = "Internal";
 
-Write-Host "network segment name: " $seg_network_name;
+Write-Host "Segment network: '$seg_network_name' to use.";
+
+function Ensure-VMSwitch {
+    param($network_name, $network_type);
+
+    $found = $false;
+    $switches = Get-VMSwitch -Name $network_name;
+
+    if ($switches) {
+        Write-Host "Switch found under segment name: $network_name";
+    }
+    else {
+        Write-Host "Switch not found under segment name: $network_name";
+        New-VMSwitch -Name $network_name -SwitchType $network_type;
+        Write-Host "Switch created.";
+    }
+}
+
 
 $machines= @(
     @{
@@ -43,41 +61,41 @@ $machines= @(
             }
         )
         tags=@('win', 'gateway', 'server')
-    },
-    @{
-        name='T1-DC'
-        base_image=$base_image
-        description="Network $project Domain Controller"
-        cpucount=2
-        memory=2GB
-        nics= @(
-            @{
-                name="domain"
-                network=$seg_network_name
-                ip="$baseIP.2"
-                gateway="$baseIP.1"
-                dns="$baseIP.2"
-            }
-        )
-        tags=@('win', 'dc', 'server')
-    },
-    @{
-        name='T1-CL'
-        base_image=$base_image
-        description="Network $project Client"
-        cpucount=2
-        memory=2GB
-        nics= @(
-            @{
-                name="domain"
-                network=$seg_network_name
-                ip="$baseIP.3"
-                gateway="$baseIP.1"
-                dns="$baseIP.2"
-            }
-        )
-        tags=@('win', 'client')
-    }
+    }# ,
+    # @{
+    #     name='T1-DC'
+    #     base_image=$base_image
+    #     description="Network $project Domain Controller"
+    #     cpucount=2
+    #     memory=2GB
+    #     nics= @(
+    #         @{
+    #             name="domain"
+    #             network=$seg_network_name
+    #             ip="$baseIP.2"
+    #             gateway="$baseIP.1"
+    #             dns="$baseIP.2"
+    #         }
+    #     )
+    #     tags=@('win', 'dc', 'server')
+    # },
+    # @{
+    #     name='T1-CL'
+    #     base_image=$base_image
+    #     description="Network $project Client"
+    #     cpucount=2
+    #     memory=2GB
+    #     nics= @(
+    #         @{
+    #             name="domain"
+    #             network=$seg_network_name
+    #             ip="$baseIP.3"
+    #             gateway="$baseIP.1"
+    #             dns="$baseIP.2"
+    #         }
+    #     )
+    #     tags=@('win', 'client')
+    # }
 )
 
 $segment = @{
@@ -357,17 +375,7 @@ function Clone_VMs {
     }
 }
 
-$found = $false;
-$switches = Get-VMSwitch -Name $seg_network_name;
-
-if ($switches) {
-    Write-Host "Switch found";
-}
-else {
-    Write-Host "Switch not found";
-    New-VMSwitch -Name $seg_network_name -SwitchType Internal
-    Write-Host "Switch made";
-}
+Ensure-VMSwitch $seg_network_name $seg_network_type
 
 Clone_VMs "$PSScriptRoot\Unattend.xml" `
     $PSScriptRoot `
