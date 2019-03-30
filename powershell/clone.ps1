@@ -27,23 +27,6 @@ $seg_network_type = "Internal";
 
 Write-Host "Segment network: '$seg_network_name' to use.";
 
-function Ensure-VMSwitch {
-    param($network_name, $network_type);
-
-    $found = $false;
-    $switches = Get-VMSwitch -Name $network_name;
-
-    if ($switches) {
-        Write-Host "Switch found under segment name: $network_name";
-    }
-    else {
-        Write-Host "Switch not found under segment name: $network_name";
-        New-VMSwitch -Name $network_name -SwitchType $network_type;
-        Write-Host "Switch created.";
-    }
-}
-
-
 $machines= @(
     @{
         name='T1-GW'
@@ -374,6 +357,23 @@ function Clone_VMs {
         }
     }
 }
+
+function Ensure-VMSwitch {
+    param($network_name, $network_type);
+
+    $found = $false;
+    $switches = Get-VMSwitch -Name $network_name;
+
+    if ($switches) {
+        Write-Host "Switch found under segment name: $network_name";
+    }
+    else {
+        Write-Host "Switch not found under segment name: $network_name";
+        New-VMSwitch -Name $network_name -SwitchType $network_type;
+        Write-Host "Switch created.";
+    }
+}
+
 
 Ensure-VMSwitch $seg_network_name $seg_network_type
 
