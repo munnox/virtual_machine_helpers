@@ -10,7 +10,7 @@
 #
 # Author Robert Munnoch
 
-$base_image = @{
+$base_images = @{
     windows= "vws"
     linux= "vlud"
 }
@@ -115,7 +115,7 @@ $segment = @{
         mask = $mask
     }
     machines=$machines
- }
+}
 
 function Rename-VM {
     Param($vm_name, $cred, $new_vm_name)
