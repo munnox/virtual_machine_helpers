@@ -10,8 +10,12 @@
 #
 # Author Robert Munnoch
 
-$base_image="vws";
-$BASE_VM = (Get-VM -Name $base_image)
+$base_image = @{
+    windows= "vws"
+    linux= "vlud"
+}
+
+# $BASE_VM = (Get-VM -Name $base_image)
 # $seg_network_name = $BASE_VM.NetworkAdapters[0].SwitchName
 
 $project = "test_segment_01";
@@ -25,25 +29,44 @@ $AdminPassword="passw0rd!"
 $seg_network_name = "$Project range: $baseIP.0/$mask";
 $seg_network_type = "Internal";
 
+$seg_main_network="Main";
+
 Write-Host "Segment network: '$seg_network_name' to use.";
 
 $machines= @(
     @{
-        name='T1-GW'
-        base_image=$base_image
-        description="Network $project Gateway"
+        name='T1-win'
+        base_image=$base_images['windows']
+        description="$project Windows"
         cpucount=2
         memory=2GB
         nics= @(
             @{
-                name="domain"
-                network=$seg_network_name
+                name="main"
+                network=$seg_main_network
                 ip="$baseIP.1"
                 gateway="$baseIP.1"
                 dns="$baseIP.1"
             }
         )
-        tags=@('win', 'gateway', 'server')
+        tags=@('windows', 'unattend', 'start', 'server')
+    },
+    @{
+        name='T1-linux'
+        base_image=$base_images['linux']
+        description="Network $project Linux"
+        cpucount=2
+        memory=2GB
+        nics= @(
+            @{
+                name="main"
+                network=$seg_main_network
+                ip="$baseIP.2"
+                gateway="$baseIP.1"
+                dns="$baseIP.1"
+            }
+        )
+        tags=@('linux', 'start', 'server')
     }# ,
     # @{
     #     name='T1-DC'
@@ -108,7 +131,7 @@ function Rename-VM {
 function Clone-HDD {
     param($new_name, $old_harddrive_path)
     $base_path = Split-Path -Path $old_harddrive_path;
-    $ext = (Split-Path -Path $old_harddrive_path -Leaf).split('.')[1];
+    $ext = (Split-Path -Path $old_harddrive_path -Leaf).split('.')[-1 ];
     $new_harddrive_path = Join-Path $base_path ($new_name + "." + $ext) ;
 
     Write-Host "Copying HDD from $old_harddrive_path to $new_harddrive_path";
@@ -309,7 +332,12 @@ function Clone_VMs {
                 -ProcessorCount $cpu  `
                 -AutomaticStartAction Start `
                 -AutomaticStopAction ShutDown `
-                -AutomaticStartDelay 0
+                -AutomaticStartDelay 0k
+
+            # Copy the Base images secure boot status to new vm
+            if ((Get-VMFirmware -VMName $base_vm_name).SecureBoot -eq "Off") {
+                Set-VMFirmware -VMName $new_vm_name -EnableSecureBoot Off
+            }
 
             Try {
                 $new_vm = Get-VM -Name $new_vm_name;
@@ -320,33 +348,42 @@ function Clone_VMs {
             if ($new_vm) {
                 Write-Host "Can now start the VM $new_vm_name";
 
-                Set-Unattend $new_vm_name $machine $new_harddrive_path $unattendxml $unattendpath
-
-                Start-VM -Name $new_vm_name
-
-                # Write-Host "wait 50 seconds to start"
-                # sleep -Seconds 50;
-                Write-Verbose "Now testing the computer for response." -Verbose;
-
-                # Source <https://social.technet.microsoft.com/wiki/contents/articles/36609.windows-server-2016-unattended-installation.aspx>
-                # After the inital provisioning, we wait until PowerShell Direct is functional and working within the guest VM before moving on.
-                # Big thanks to Ben Armstrong for the below useful Wait code 
-                # Write-Verbose “Waiting for PowerShell Direct to start on VM [$DCVMName]” -Verbose
-                #     while ((icm -VMName $new_vm_name -Credential $DCLocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {Sleep -Seconds 1}
-            
-                $count = 0 # Got to 60,65,62
-                Write-Verbose “Waiting for PowerShell Direct to start on VM [$new_vm_name]” -Verbose
-                while ((icm -VMName $new_vm_name -Credential $LocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {
-                    Sleep -Seconds 1
-                    $count = $count + 1;
-                    Write-Host "Waiting C=$count";
-                    If ($count -gt 90) { break; }
+                if (($tags -icontains "windows") -and ($tags -icontains "unattend")) {
+                    Write-Host "Windows detected will use unattended install"
+                    Set-Unattend $new_vm_name $machine $new_harddrive_path $unattendxml $unattendpath
                 }
-                # Other tasks here
 
-                Rename-VM $new_vm_name $LocalCredential $new_vm_name
+                if ($tags -icontains "start") {
+                    Start-VM -Name $new_vm_name
 
-                Rename-VMnics $new_vm_name $LocalCredential $nics
+                    if ($tags -icontains "windows") {
+                        # Write-Host "wait 50 seconds to start"
+                        # sleep -Seconds 50;
+                        Write-Verbose "Now testing the computer for response." -Verbose;
+
+                        # Source <https://social.technet.microsoft.com/wiki/contents/articles/36609.windows-server-2016-unattended-installation.aspx>
+                        # After the inital provisioning, we wait until PowerShell Direct is functional and working within the guest VM before moving on.
+                        # Big thanks to Ben Armstrong for the below useful Wait code 
+                        # Write-Verbose “Waiting for PowerShell Direct to start on VM [$DCVMName]” -Verbose
+                        #     while ((icm -VMName $new_vm_name -Credential $DCLocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {Sleep -Seconds 1}
+            
+                        $count = 0 # Got to 60,65,62
+                        Write-Verbose “Waiting for PowerShell Direct to start on VM [$new_vm_name]” -Verbose
+                        while ((icm -VMName $new_vm_name -Credential $LocalCredential {“Test”} -ea SilentlyContinue) -ne “Test”) {
+                            Sleep -Seconds 1
+                            $count = $count + 1;
+                            Write-Host "Waiting C=$count";
+                            If ($count -gt 90) { break; }
+                        }
+                    }
+                    # Other tasks here
+
+                    if ($tags -icontains "windows") {
+                        Rename-VM $new_vm_name $LocalCredential $new_vm_name
+                        
+                        Rename-VMnics $new_vm_name $LocalCredential $nics
+                    }
+                }
             }
             else {
                 Write-Host "New VM not created";
