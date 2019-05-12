@@ -23,17 +23,17 @@ Write-Host $locationpath
 Set-VM -Name $name -AutomaticStopAction TurnOff
 Set-VM -VMName $name -GuestControlledCacheTypes $true
 
-Set-VM -VMName $name -LowMemoryMappedIoSpace 3GB -VMName $name
-Set-VM -VMName $name -HighMemoryMappedIoSpace 8GB -VMName $name
+Set-VM -VMName $name -LowMemoryMappedIoSpace 3GB
+Set-VM -VMName $name -HighMemoryMappedIoSpace 8GB
 
 # Disable on local host and attach to VM
-Dismount-VmHostAssignableDevice -locationpath $locationpath -force
 Disable-PnpDevice -InstanceId $pnpdev.InstanceId -Confirm:$false
+Dismount-VmHostAssignableDevice -locationpath $locationpath -force
 Add-VMAssignableDevice -locationpath $locationpath -VMname $name
 
 
 # see the connected devices
-Get-VMAssignableDevice -VMName $name
+$pnp = Get-VMAssignableDevice -VMName $name
 
 
 # Disable VM and attach to local host
