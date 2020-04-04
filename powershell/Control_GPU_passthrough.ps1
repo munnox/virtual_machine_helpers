@@ -14,22 +14,30 @@ $pnpdev = $pnpdevs[0]
 
 $name = "DL-Host"
 
+$instanceid = $pnpdev.InstanceId
 $locationpath = ($pnpdev | Get-PnpDeviceProperty DEVPKEY_Device_LocationPaths).data[0]
 
 Write-Host $locationpath
 
 # Prepare VM
 
-Set-VM -Name $name -AutomaticStopAction TurnOff
-Set-VM -VMName $name -GuestControlledCacheTypes $true
+function initialiseVM {
+    param ($name)
+    Set-VM -Name $name -AutomaticStopAction TurnOff
+    Set-VM -VMName $name -GuestControlledCacheTypes $true
 
-Set-VM -VMName $name -LowMemoryMappedIoSpace 3GB
-Set-VM -VMName $name -HighMemoryMappedIoSpace 8GB
+    Set-VM -VMName $name -LowMemoryMappedIoSpace 3GB
+    Set-VM -VMName $name -HighMemoryMappedIoSpace 8GB
+}
 
 # Disable on local host and attach to VM
-Disable-PnpDevice -InstanceId $pnpdev.InstanceId -Confirm:$false
-Dismount-VmHostAssignableDevice -locationpath $locationpath -force
-Add-VMAssignableDevice -locationpath $locationpath -VMname $name
+function host_to_vm {
+    [CmdletBinding()]
+    param ($name, $instanceid, $locationpath)
+    Disable-PnpDevice -InstanceId $instanceid -Confirm:$false
+    Dismount-VmHostAssignableDevice -locationpath $locationpath -force
+    Add-VMAssignableDevice -locationpath $locationpath -VMname $name
+}
 
 
 # see the connected devices
@@ -37,9 +45,12 @@ $pnp = Get-VMAssignableDevice -VMName $name
 
 
 # Disable VM and attach to local host
-Remove-VMAssignableDevice -location $locationpath -vmname $name
-Mount-VMHostAssignableDevice -LocationPath $locationPath
-Enable-PnpDevice -InstanceID $pnpdev.InstanceID -Confirm:$false
+function vm_to_host {
+    param ($name, $instanceid, $locationpath)
+    Remove-VMAssignableDevice -location $locationpath -vmname $name
+    Mount-VMHostAssignableDevice -LocationPath $locationpath
+    Enable-PnpDevice -InstanceID $instanceid -Confirm:$false
+}
 
 
 # see the connected devices
