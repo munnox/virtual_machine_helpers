@@ -4,6 +4,6 @@
 #
 # Author Robert Munnoch
 
-$name = "DL-Host"
+$name = "u180402"
 
 Set-VMProcessor -VMName $name -ExposeVirtualizationExtensions $true
