@@ -1,4 +1,10 @@
-﻿
+﻿# A library to create VM's
+# Author Robert Munnoch
+# TODO need to extend this to set the status of the VM
+# TODO need to extend this to YAML using: https://github.com/cloudbase/powershell-yaml
+# TODO create a interface webserver maybe using this: https://gallery.technet.microsoft.com/scriptcenter/Powershell-Webserver-74dcf466
+# or this very simple example: https://gist.github.com/jakobii/429dcef1bacacfa1da254a5353bbeac7
+
 function Rename-VM {
     Param($vm_name, $cred, $new_vm_name)
 
@@ -12,6 +18,7 @@ function Rename-VM {
 
 function Clone-HDD {
     param($new_name, $old_harddrive_path)
+
     $base_path = Split-Path -Path $old_harddrive_path;
     $ext = (Split-Path -Path $old_harddrive_path -Leaf).split('.')[-1 ];
     $new_harddrive_path = Join-Path $base_path ($new_name + "." + $ext) ;
@@ -25,6 +32,7 @@ function Clone-HDD {
 
 function Rename-VMnics {
     Param($new_vm_name, $cred, $nics)
+
     Write-Host "Rename Nics"
     foreach ($nic in $nics) {
         $nic_name = $nic['name'];
@@ -75,6 +83,7 @@ function Set-VMNICS {
 
 function Set-VMHDD {
     Param($new_vm_name, $new_harddrive_path)
+
     # Add HD
     Add-VMHardDiskDrive -VMName $new_vm_name -ControllerType SCSI -Path $new_harddrive_path
 
@@ -186,7 +195,7 @@ function Clone-VMs {
         }
 
         if ($vm) {
-            Write-Host "New VM found Continuing"
+            Write-Host "New VM found called $new_vm_name Continuing"
             continue;
         }
         else {
@@ -207,6 +216,14 @@ function Clone-VMs {
                 -MemoryStartupBytes $memory `
                 -NoVHD `
                 -Generation $BASE_VM.Generation;
+
+            # Turn off dynamic memory
+            Set-VMMemory -VMName $new_vm_name -DynamicMemoryEnabled $false
+            # # Turn on and set the dynamic memory to the maximum
+            # Set-VMMemory -VM $new_vm_name -DynamicMemoryEnabled $true -MinimumBytes 64MB -StartupBytes 256MB -MaximumBytes $memory -Priority 80 -Buffer 25
+
+            # Turn off snapshots/checkpoints
+            Set-VM -Name $new_vm_name -AutomaticCheckpointsEnabled $false
 
             $nics = Set-VMNICS $new_vm_name $nics
 
@@ -235,7 +252,7 @@ function Clone-VMs {
                 
                 if (($tags -icontains "allowvirtualisation")) {
                     Write-Host "Allow the VM to use virtualisation"
-                    Set-VMProcessor -VMName $name -ExposeVirtualizationExtensions $true
+                    Set-VMProcessor -VMName $new_vm_name -ExposeVirtualizationExtensions $true
                 }
 
                 Write-Host "Can now start the VM $new_vm_name";

@@ -1,4 +1,4 @@
-﻿6# Very simple script to take an existing base image and clone it
+# Very simple script to take an existing base image and clone it
 # This pull the hdd generation and network from the original.
 #
 # Now makes multiple VM from a list of names with the same characteristics.
@@ -9,12 +9,28 @@
 # Source of inspiration at <https://www.altaro.com/hyper-v/powershell-script-deploy-vms-configure-guest-os-one-go/> 
 #
 # Author Robert Munnoch
+# [about_Execution_Policies](https:/go.microsoft.com/fwlink/?LinkID=135170)
+# `Get-ExecutionPolicy` or `Get-ExecutionPolicy -List` or `Get-ExecutionPolicy -Scope CurrentUser`
+#         Scope ExecutionPolicy
+#         ----- ---------------
+# MachinePolicy       Undefined
+#    UserPolicy       Undefined
+#       Process       Undefined
+#   CurrentUser    RemoteSigned
+#  LocalMachine       AllSigned
+# Group Policy 	                                | Execution Policy
+# ----------------------------------------------| ----------------
+# Allow all scripts                             |  Unrestricted
+# Allow local scripts and remote signed scripts |  RemoteSigned
+# Allow only signed scripts                     |  AllSigned
+# `Set-ExecutionPolicy -ExecutionPolicy Unrestricted`
 
 $base_images = @{
     windows= "vws"
-    linuxdesktop= "vlud1804-Image"
-    linuxserver= "vlus1804-Image"
-    pfsense="image-pfsense"
+    linuxdesktop= "Image-ud180404"
+    linuxserver= "Image-us180404"
+    client= "ansible_client"
+    pfsense="Image-pfsense"
 }
 
 # $BASE_VM = (Get-VM -Name $base_image)
@@ -31,7 +47,8 @@ $AdminPassword="passw0rd!"
 $seg_network_name = "$Project range: $baseIP.0/$mask";
 $seg_network_type = "Internal";
 
-$seg_main_network="Domain";
+$seg_network="NIC-A";
+$seg_main_network="LocalNet";
 
 Write-Host "Segment network: '$seg_network_name' to use.";
 
@@ -83,7 +100,7 @@ $machines= @(
             'server'
         )
     }
-        @{
+    @{
         name='log_server_02'
         base_image=$base_images['linuxdesktop']
         description="Network $project Linux"
