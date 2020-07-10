@@ -114,7 +114,11 @@ while ($http.IsListening) {
         $http.Close()
     }
 
-} 
+}
+
+Write-Host "Server Finished" -f 'Green'
+$http.Dispose()
+Remove-Variable http
 
 # Note:
 # To end the loop you have to kill the powershell terminal. ctrl-c wont work :/
