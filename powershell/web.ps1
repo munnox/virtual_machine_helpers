@@ -1,7 +1,7 @@
 ﻿# This is a super **SIMPLE** example of how to create a very basic powershell webserver
 # 2019-05-18 UPDATE — Created by me and and evalued by @jakobii and the comunity.
 # Source from https://gist.githubusercontent.com/19WAS85/5424431/raw/3a827c9f4e4065fd4550421fbbc4ad68ddf2adab/powershell-web-server.ps1
-
+# Been updated and tweaked by Robert Munnoch to server as a simple web agent for hyper-V
 
 # Http Server
 $http = [System.Net.HttpListener]::new() 
@@ -13,7 +13,12 @@ $http.Prefixes.Add("http://localhost:8080/")
 $http.Start()
 
 $text = "content text string"
+function Get-ScriptPath
+{
+    Split-Path $myInvocation.ScriptName
+}
 
+$script_path = Get-ScriptPath;
 
 
 # Log ready message to terminal 
@@ -43,6 +48,35 @@ function query_unpacker {
     return $queryParams;
 }
 
+$segment_filename = $script_path + "/current_segment.json"
+# https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/convertto-json?view=powershell-7
+$segment_json = Get-Content -Path $segment_filename | ConvertFrom-Json | ConvertTo-Json
+
+$script_path = Get-ScriptPath;
+$vmlib = $script_path + "\VirtualisationLib.psm1"
+Write-Host "Importing my VM module from path: " $vmlib
+Import-Module $vmlib
+# . .\VirtualisationLib.ps1
+
+
+$fromhtml = @"
+<h1>A Powershell Webserver</h1>
+<form action="/some/post" method="post">
+    <p>A Basic Form</p>
+    <p>fullname</p>
+    <input type="text" name="fullname">
+    <p>message</p>
+    <textarea rows='80' cols='200' name='message'>
+$segment_json
+    </textarea>
+    <br>
+    <input type='submit' value='Submit'>
+</form>
+
+<pre>$segment_json</pre>
+"@
+
+Write-Host $fromhtml
 
 # INFINTE LOOP
 # Used to listen for requests
@@ -56,7 +90,7 @@ while ($http.IsListening) {
     $context = $http.GetContext()
 
 
-    # ROUTE EXAMPLE 1
+    # ROUTE Hyper-V Index
     # http://127.0.0.1/
     if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/') {
 
@@ -69,8 +103,9 @@ while ($http.IsListening) {
         <h1>A Powershell Webserver</h1>
         <p>home page</p>
         <p>$text</p>
-        <a href='/some/form'>form</a>
-        <a href='/quit'>quit</a>
+        <div><a href='/some/form' target='_blank'>Write Segment</a></div>
+        <div><a href='/sync/form' target='_blank'>Sync Segment</a></div>
+        <div><a href='/quit' target='_blank'>Quit Server</a></div>
         " 
         
         #resposed to the request
@@ -90,21 +125,10 @@ while ($http.IsListening) {
         # We can log the request to the terminal
         write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url)" -f 'mag'
 
-        [string]$html = "
-        <h1>A Powershell Webserver</h1>
-        <form action='/some/post' method='post'>
-            <p>A Basic Form</p>
-            <p>fullname</p>
-            <input type='text' name='fullname'>
-            <p>message</p>
-            <textarea rows='4' cols='50' name='message'></textarea>
-            <br>
-            <input type='submit' value='Submit'>
-        </form>
-        "
+
 
         #resposed to the request
-        $buffer = [System.Text.Encoding]::UTF8.GetBytes($html) 
+        $buffer = [System.Text.Encoding]::UTF8.GetBytes($fromhtml) 
         $context.Response.ContentLength64 = $buffer.Length
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length) 
         $context.Response.OutputStream.Close()
@@ -123,7 +147,22 @@ while ($http.IsListening) {
         Write-Host $FormContent -f 'Green'
 
         $query = query_unpacker($FormContent)
-        Write-host $query
+
+        $filename = "./" + $query[0].Value
+        $message = [System.Web.HttpUtility]::UrlDecode($query[1].Value)
+
+
+        Write-host $query -f 'Magenta'
+        Write-host "Result: Filename: " $query[0].Query $query[0].Value $filename
+        Write-host "Message: " $query[1].Query $query[1].Value $message
+
+
+        # Save json in file
+        # https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/convertfrom-json?view=powershell-7
+        #  ConvertFrom-Json
+        $filename = $script_path + "\" + $query[0].Value
+        Set-Content -Path $filename -Value $query[1].Value
+
 
         # the html/data
         [string]$html = "<h1>A Powershell Webserver</h1><p>Post Successful!</p><p>$FormContent</p>" 
@@ -136,6 +175,41 @@ while ($http.IsListening) {
     }
 
 
+    # ROUTE RAM VM host mods
+    # ROUTE mode Form
+    # http://127.0.0.1/some/form'
+    if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/sync/form') {
+
+        # We can log the request to the terminal
+        write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url)" -f 'mag'
+
+        [string]$syncform = "<h1>A Powershell Webserver</h1> <form action='/sync/segment' method='post'> <p>A Basic Form</p> <input type='submit' value='Submit'> </form>"
+
+
+        #resposed to the request
+        $buffer = [System.Text.Encoding]::UTF8.GetBytes($syncform) 
+        $context.Response.ContentLength64 = $buffer.Length
+        $context.Response.OutputStream.Write($buffer, 0, $buffer.Length) 
+        $context.Response.OutputStream.Close()
+    }
+    # http://127.0.0.1/sync/segment'
+    if ($context.Request.HttpMethod -eq 'POST' -and $context.Request.RawUrl -eq '/sync/segment') {
+        $segment_filename = $script_path + "\current_segment.json"
+
+        $new_segment = Get-Content -Path $segment_filename | ConvertFrom-Json
+        # Ensure-VMSwitch $seg_network_name $seg_network_type
+        Clone-VMs "$PSScriptRoot\Unattend.xml" `
+            $PSScriptRoot `
+            $new_segment.machines `
+            $new_segment.admin_credentials.username `
+            $new_segment.admin_credentials.password
+        $done = "ok"
+        #resposed to the request
+        $buffer = [System.Text.Encoding]::UTF8.GetBytes($done) 
+        $context.Response.ContentLength64 = $buffer.Length
+        $context.Response.OutputStream.Write($buffer, 0, $buffer.Length) 
+        $context.Response.OutputStream.Close()
+    }
     # powershell will continue looping and listen for new requests...
 
     # ROUTE EXAMPLE 4

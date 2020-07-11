@@ -35,16 +35,16 @@ function Rename-VMnics {
 
     Write-Host "Rename Nics"
     foreach ($nic in $nics) {
-        $nic_name = $nic['name'];
-        $nic_network = $nic['network'];
-        $nic_mac = $nic['macaddress'];
+        $nic_name = $nic.name;
+        $nic_network = $nic.network;
+        $nic_mac = $nic.macaddress;
         Write-Host "Finding $nic_mac renameing it to $nic_name";
         Invoke-Command -VMName $new_vm_name -Credential $cred -ScriptBlock {
             Param($nic_mac, $nic_name);
             Write-Host "Testing remote machine mac: $nic_mac name: $nic_name";
             Get-NetAdapter | ?{$_.MacAddress -eq $nic_mac} | Rename-NetAdapter -NewName $nic_name;
         } -ArgumentList @($nic_mac, $nic_name)
-        # Rename-NetAdapter -Name "Ethernet" -NewName $machine['nics'][0]['name']
+        # Rename-NetAdapter -Name "Ethernet" -NewName $machine.nics[0].name
     }
 }
 
@@ -57,8 +57,8 @@ function Set-VMNICS {
     Get-VMNetworkAdapter -VMName $new_vm_name | Remove-VMNetworkAdapter
 
     foreach ($nic in $nics) {
-        $nic_name = $nic['name'];
-        $nic_network = $nic['network'];
+        $nic_name = $nic.name;
+        $nic_network = $nic.network;
         #Add one back
         Add-VMNetworkAdapter -VMName $new_vm_name -SwitchName $nic_network -Name $nic_name -DeviceNaming On;
 
@@ -70,11 +70,11 @@ function Set-VMNICS {
         $MACAddress=get-VMNetworkAdapter -VMName $new_vm_name -Name $nic_name | select MacAddress -ExpandProperty MacAddress;
         $MACAddress=($MACAddress -replace '(..)','$1-').trim('-');
         get-VMNetworkAdapter -VMName $new_vm_name -Name $nic_name | Set-VMNetworkAdapter -StaticMacAddress $MACAddress;
-        $nic['macaddress'] = $MACAddress;
-        Write-Host "New NIC: $nic[0]['macaddress'] $MACAddress";
+        $nic.macaddress = $MACAddress;
+        Write-Host "New NIC: $nic[0].macaddress $MACAddress";
 
-        if ($nic['vlan'] -ge 0) {
-            get-VMNetworkAdapter -VMName $new_vm_name -Name $nic_name | Set-VMNetworkAdapterVLan -Access -VlanId $nic['vlan'];
+        if ($nic.vlan -ge 0) {
+            get-VMNetworkAdapter -VMName $new_vm_name -Name $nic_name | Set-VMNetworkAdapterVLan -Access -VlanId $nic.vlan;
         }
     }
     # Write-Host $nics
@@ -121,12 +121,12 @@ function Set-Unattend {
     $Organization="Munnox"
     #This ProductID is actually the AVMA key provided by MS
     $ProductID="TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J"
-    $IPDomain=$machine['nics'][0]['ip'];
+    $IPDomain=$machine.nics[0].ip;
     $IPMask=$mask;
-    $MACAddress=$machine['nics'][0]['macaddress'];
-    $DefaultGW=$machine['nics'][0]['gateway'];
-    $DNSServer=$machine['nics'][0]['dns'];
-    $DNSDomain=$machine['nics'][0]['domain'];
+    $MACAddress=$machine.nics[0].macaddress;
+    $DefaultGW=$machine.nics[0].gateway;
+    $DNSServer=$machine.nics[0].dns;
+    $DNSDomain=$machine.nics[0].domain;
 
     #Prepare the unattend.xml file to send out, simply copy to a new file and replace values
     Copy-Item $UnattendLocation $StartupFolder\"unattend"$Name".xml"
@@ -159,25 +159,26 @@ function Clone-VMs {
 
     Write-Host "Unattendxml: $unattendxml"
     Write-Host "Unattend path: $unattendpath"
+    Write-Host "machines: $machines"
 
     foreach ($machine in $machines) {
         # Name of new vm
-        $new_vm_name = $machine['name'];
+        $new_vm_name = $machine.name;
         # THe name of the base image to clone
-        $base_vm_name = $machine['base_image'];
+        $base_vm_name = $machine.base_image;
 
         # Get cpu
-        $cpu = $machine['cpucount'];
+        $cpu = $machine.cpucount;
         # Get memory
-        $memory = $machine['memory'];
+        $memory = $machine.memory;
 
         # Get nics
-        $nics = $machine['nics'];
-        Write-Host $nics;
-        # $network_name = $nics[0]['network'];
+        $nics = $machine.nics;
+        Write-Host "NEW VM details: " $machine;
+        # $network_name = $nics[0].network;
 
         # informational tag to modify behaviour
-        $tags = $machine['tags'];
+        $tags = $machine.tags;
 
         # Basic Creds
         $LocalUser = "$AdminAccount"

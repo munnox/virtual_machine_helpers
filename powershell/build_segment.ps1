@@ -1,4 +1,4 @@
-# Very simple script to take an existing base image and clone it
+﻿# Very simple script to take an existing base image and clone it
 # This pull the hdd generation and network from the original.
 #
 # Now makes multiple VM from a list of names with the same characteristics.
@@ -123,7 +123,7 @@ $machines= @(
             'server'
         )
     }
-)
+        )
 
 
 $single_machine= @(
@@ -180,15 +180,23 @@ function Get-ScriptPath
     Split-Path $myInvocation.ScriptName
 }
 
-$lib = Get-ScriptPath;
-$lib = $lib + "\VirtualisationLib.psm1"
-Import-Module $lib
+$script_path = Get-ScriptPath;
+$vmlib = $script_path + "\VirtualisationLib.psm1"
+Write-Host "Importing my VM module from path: " $vmlib
+Import-Module $vmlib
 # . .\VirtualisationLib.ps1
 
+$segment_filename = $script_path + "\current_segment.json"
+$machines_json = ConvertTo-Json $segment
+Set-Content -Path $segment_filename -Value $machines_json
+
+
+$new_segment = Get-Content -Path $segment_filename | ConvertFrom-Json
 # Ensure-VMSwitch $seg_network_name $seg_network_type
 
+Write-Host $new_segment
 Clone-VMs "$PSScriptRoot\Unattend.xml" `
     $PSScriptRoot `
-    $segment['machines'] `
-    $segment['admin_credentials']['username'] `
-    $segment['admin_credentials']['password']
+    $new_segment.machines `
+    $new_segment.admin_credentials.username `
+    $new_segment.admin_credentials.password

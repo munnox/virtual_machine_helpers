@@ -1,0 +1,31 @@
+{
+    "network":  {
+                    "baseIP":  "192.168.0",
+                    "mask":  24
+                },
+    "machines":  [
+                     {
+                         "name":  "log_server_01",
+                         "tags":  "linux allowvirtualisation start server",
+                         "description":  "Network test_segment Linux",
+                         "cpucount":  2,
+                         "memory":  4294967296,
+                         "nics":  "System.Collections.Hashtable",
+                         "base_image":  "Image-ud180404"
+                     },
+                     {
+                         "name":  "log_server_02",
+                         "tags":  "linux allowvirtualisation start server",
+                         "description":  "Network test_segment Linux",
+                         "cpucount":  2,
+                         "memory":  4294967296,
+                         "nics":  "System.Collections.Hashtable",
+                         "base_image":  "Image-ud180404"
+                     }
+                 ],
+    "project":  "test_segment",
+    "admin_credentials":  {
+                              "password":  "passw0rd!",
+                              "username":  "Administrator"
+                          }
+}
