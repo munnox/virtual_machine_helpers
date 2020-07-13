@@ -8,6 +8,7 @@ $http = [System.Net.HttpListener]::new()
 
 # Hostname and port to listen on
 $http.Prefixes.Add("http://localhost:8080/")
+$http.Prefixes.Add("http://desk-rob:8080/")
 
 # Start the Http Server 
 $http.Start()
@@ -212,18 +213,51 @@ $segment_json
     }
 
     # http://127.0.0.1/get_vm'
-    if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/get_vm') {
+    if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -like '/get_vm*') {
         
         # We can log the request to the terminal
         write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url)" -f 'mag'
+        ## https://docs.microsoft.com/en-us/dotnet/api/system.uri?view=netframework-4.7.2
+        $url = [uri]$context.Request.Url
 
-        $url = [url]$context.Request.RawUrl
+        Write-Host $url.Query
 
-        Write-Host $url
+        $query = query_unpacker($url.Query)
 
-        $vms = Get-VM | ConvertTo-Json
+        write-host $query
+
+        # $vms = Get-VM -Name $query.name | ConvertTo-Json
+
+        $vms = Get-VM
+
+        $vm_list = @()
+        foreach($vm in $vms) {
+            $vmObject = New-Object -TypeName psobject
+            $vmObject | Add-Member -MemberType NoteProperty -Name vmname -Value $vm.Name
+            $vmObject | Add-Member -MemberType NoteProperty -Name state -Value $vm.State
+            $vmObject | Add-Member -MemberType NoteProperty -Name processorcount -Value $vm.ProcessorCount
+            $vmObject | Add-Member -MemberType NoteProperty -Name memory -Value $vm.MemoryAssigned
+            $vmObject | Add-Member -MemberType NoteProperty -Name uptime -Value $vm.Uptime.TotalSeconds
+            $net_list = @()
+            foreach($net in $vm.NetworkAdapters) {
+                $netObject = New-Object -TypeName psobject
+                $netObject | Add-Member -MemberType NoteProperty -Name name -Value $net.Name
+                $netObject | Add-Member -MemberType NoteProperty -Name mac -Value $net.MacAddress
+                $netObject | Add-Member -MemberType NoteProperty -Name switchname -Value $net.SwitchName
+                $netObject | Add-Member -MemberType NoteProperty -Name connected -Value $net.Connected
+                $netObject | Add-Member -MemberType NoteProperty -Name vlanid -Value $net.vlanSetting.AccessVlanId
+                # $netObject | Add-Member -MemberType NoteProperty -Name if -Value $net
+                $net_list += $netObject
+            }
+            $vmObject | Add-Member -MemberType NoteProperty -Name net -Value $net_list
+            $vm_list += $vmObject
+        }
+        # $vm_list
+        $vms_json = $vm_list | ConvertTo-Json -Depth 4 
+
+
         #resposed to the request
-        $buffer = [System.Text.Encoding]::UTF8.GetBytes($vms) 
+        $buffer = [System.Text.Encoding]::UTF8.GetBytes($vms_json) 
         $context.Response.ContentLength64 = $buffer.Length
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length) 
         $context.Response.OutputStream.Close()
