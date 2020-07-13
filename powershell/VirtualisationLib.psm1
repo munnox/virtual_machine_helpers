@@ -196,11 +196,26 @@ function Clone-VMs {
         }
 
         if ($vm) {
-            Write-Host "New VM found called $new_vm_name Continuing"
+            Write-Host "New VM found called $new_vm_name"
+            if ($machine.state -eq "absent"){
+                Write-Host "New VM found called $new_vm_name should be absent. Removing"
+                # inspired and sourced from https://petri.com/completely-remove-hyper-v-virtual-machine-powershell
+
+                $disks = Get-VHD -VMId $vm.Id -ComputerName $computername
+                Remove-Item $disks.path -WhatIf
+                
+
+                $vm | remove-vm
+            }
             continue;
         }
         else {
             Write-Host "New VM not found"
+        }
+
+        if ($machine.state -ne "present"){
+            Write-Host "New VM not found called $new_vm_name but not set that it should be present. Continuing"
+            continue;
         }
 
         # test that base image found but not new image so it wont duplicate vm's

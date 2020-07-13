@@ -59,25 +59,6 @@ Import-Module $vmlib
 # . .\VirtualisationLib.ps1
 
 
-$fromhtml = @"
-<h1>A Powershell Webserver</h1>
-<form action="/some/post" method="post">
-    <p>A Basic Form</p>
-    <p>fullname</p>
-    <input type="text" name="fullname">
-    <p>message</p>
-    <textarea rows='80' cols='200' name='message'>
-$segment_json
-    </textarea>
-    <br>
-    <input type='submit' value='Submit'>
-</form>
-
-<pre>$segment_json</pre>
-"@
-
-Write-Host $fromhtml
-
 # INFINTE LOOP
 # Used to listen for requests
 while ($http.IsListening) {
@@ -95,7 +76,7 @@ while ($http.IsListening) {
     if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/') {
 
         # We can log the request to the terminal
-        write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url)" -f 'mag'
+        write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url) ($($context.Request.Headers))" -f 'mag'
 
         # the html/data you want to send to the browser
         # you could replace this with: [string]$html = Get-Content "C:\some\path\index.html" -Raw
@@ -103,7 +84,7 @@ while ($http.IsListening) {
         <h1>A Powershell Webserver</h1>
         <p>home page</p>
         <p>$text</p>
-        <div><a href='/some/form' target='_blank'>Write Segment</a></div>
+        <div><a href='/segment/form' target='_blank'>Write Segment</a></div>
         <div><a href='/sync/form' target='_blank'>Sync Segment</a></div>
         <div><a href='/quit' target='_blank'>Quit Server</a></div>
         " 
@@ -118,14 +99,28 @@ while ($http.IsListening) {
 
 
 
-    # ROUTE EXAMPLE 2
+    # ROUTE segment form to write the current segment json
     # http://127.0.0.1/some/form'
-    if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/some/form') {
+    if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/segment/form') {
 
         # We can log the request to the terminal
         write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url)" -f 'mag'
 
 
+        $fromhtml = @"
+<h1>A Powershell Webserver</h1>
+<form action="/segment/post" method="post">
+    <p>A Basic Form</p>
+    <p>fullname</p>
+    <input type="text" name="fullname" value="current_segment.json">
+    <p>message</p>
+    <textarea rows='80' cols='200' name='message'>
+$segment_json
+    </textarea>
+    <br>
+    <input type='submit' value='Submit'>
+</form>
+"@
 
         #resposed to the request
         $buffer = [System.Text.Encoding]::UTF8.GetBytes($fromhtml) 
@@ -134,9 +129,9 @@ while ($http.IsListening) {
         $context.Response.OutputStream.Close()
     }
 
-    # ROUTE EXAMPLE 3
+    # ROUTE segment form post
     # http://127.0.0.1/some/post'
-    if ($context.Request.HttpMethod -eq 'POST' -and $context.Request.RawUrl -eq '/some/post') {
+    if ($context.Request.HttpMethod -eq 'POST' -and $context.Request.RawUrl -eq '/segement/post') {
 
         # decode the form post
         # html form members need 'name' attributes as in the example!
@@ -192,8 +187,13 @@ while ($http.IsListening) {
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length) 
         $context.Response.OutputStream.Close()
     }
+
     # http://127.0.0.1/sync/segment'
     if ($context.Request.HttpMethod -eq 'POST' -and $context.Request.RawUrl -eq '/sync/segment') {
+
+        # We can log the request to the terminal
+        write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url)" -f 'mag'
+
         $segment_filename = $script_path + "\current_segment.json"
 
         $new_segment = Get-Content -Path $segment_filename | ConvertFrom-Json
@@ -206,6 +206,24 @@ while ($http.IsListening) {
         $done = "ok"
         #resposed to the request
         $buffer = [System.Text.Encoding]::UTF8.GetBytes($done) 
+        $context.Response.ContentLength64 = $buffer.Length
+        $context.Response.OutputStream.Write($buffer, 0, $buffer.Length) 
+        $context.Response.OutputStream.Close()
+    }
+
+    # http://127.0.0.1/get_vm'
+    if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/get_vm') {
+        
+        # We can log the request to the terminal
+        write-host "$($context.Request.UserHostAddress)  =>  $($context.Request.Url)" -f 'mag'
+
+        $url = [url]$context.Request.RawUrl
+
+        Write-Host $url
+
+        $vms = Get-VM | ConvertTo-Json
+        #resposed to the request
+        $buffer = [System.Text.Encoding]::UTF8.GetBytes($vms) 
         $context.Response.ContentLength64 = $buffer.Length
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length) 
         $context.Response.OutputStream.Close()

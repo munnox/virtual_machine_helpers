@@ -99,6 +99,7 @@ $machines= @(
             'start',
             'server'
         )
+        state="present"
     }
     @{
         name='log_server_02'
@@ -122,6 +123,7 @@ $machines= @(
             'start',
             'server'
         )
+        state="absent"
     }
         )
 
@@ -191,12 +193,12 @@ $machines_json = ConvertTo-Json $segment
 Set-Content -Path $segment_filename -Value $machines_json
 
 
-$new_segment = Get-Content -Path $segment_filename | ConvertFrom-Json
-# Ensure-VMSwitch $seg_network_name $seg_network_type
-
-Write-Host $new_segment
-Clone-VMs "$PSScriptRoot\Unattend.xml" `
-    $PSScriptRoot `
-    $new_segment.machines `
-    $new_segment.admin_credentials.username `
-    $new_segment.admin_credentials.password
+# $new_segment = Get-Content -Path $segment_filename | ConvertFrom-Json
+# # Ensure-VMSwitch $seg_network_name $seg_network_type
+# 
+# Write-Host $new_segment
+# Clone-VMs "$PSScriptRoot\Unattend.xml" `
+#     $PSScriptRoot `
+#     $new_segment.machines `
+#     $new_segment.admin_credentials.username `
+#     $new_segment.admin_credentials.password

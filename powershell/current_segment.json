@@ -5,22 +5,24 @@
                 },
     "machines":  [
                      {
-                         "name":  "log_server_01",
-                         "tags":  "linux allowvirtualisation start server",
-                         "description":  "Network test_segment Linux",
                          "cpucount":  2,
-                         "memory":  4294967296,
+                         "state":  "present",
+                         "tags":  "linux allowvirtualisation start server",
+                         "name":  "log_server_01",
                          "nics":  "System.Collections.Hashtable",
-                         "base_image":  "Image-ud180404"
+                         "description":  "Network test_segment Linux",
+                         "base_image":  "Image-ud180404",
+                         "memory":  4294967296
                      },
                      {
-                         "name":  "log_server_02",
-                         "tags":  "linux allowvirtualisation start server",
-                         "description":  "Network test_segment Linux",
                          "cpucount":  2,
-                         "memory":  4294967296,
+                         "state":  "present",
+                         "tags":  "linux allowvirtualisation start server",
+                         "name":  "log_server_02",
                          "nics":  "System.Collections.Hashtable",
-                         "base_image":  "Image-ud180404"
+                         "description":  "Network test_segment Linux",
+                         "base_image":  "Image-ud180404",
+                         "memory":  4294967296
                      }
                  ],
     "project":  "test_segment",
